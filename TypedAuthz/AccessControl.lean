@@ -15,4 +15,11 @@ theorem access_checked (policy : Policy User Input Location) (user : User) (inpu
     Justified (program.run policy user input database).2 := by
   sorry
 
+theorem access_allowed (policy : Policy User Input Location) (user : User) (input : Input)
+    (database : Database Value) {Result : Type} (program : Program Value [] Result)
+    (location : Location)
+    (accessed : List.Mem (Event.access location) (program.run policy user input database).2) :
+    policy user input location = true := by
+  sorry
+
 end TypedAuthz
