@@ -1,3 +1,4 @@
 import TypedAuthz.AccessControl
+import TypedAuthz.Examples
 import TypedAuthz.Noninterference
 import TypedAuthz.Program
