@@ -12,7 +12,7 @@ inductive Program (Value : Location -> Type) : List Location -> Type -> Type 1 w
   | pure {checked : List Location} {Result : Type} (result : Result) :
       Program Value checked Result
   | read {checked : List Location} {Result : Type} (location : Location)
-      (isChecked : List.Mem location checked)
+      (isChecked : Membership.mem checked location)
       (next : Value location -> Program Value checked Result) : Program Value checked Result
   | check {checked : List Location} {Result : Type} (location : Location)
       (yes : Program Value (location :: checked) Result) (no : Program Value checked Result) :

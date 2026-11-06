@@ -8,7 +8,7 @@ variable {User Input Location : Type} {Value : Location -> Type}
 
 def Justified (trace : List (Event Location)) : Prop :=
   forall before location after, trace = before ++ Event.access location :: after ->
-    List.Mem (Event.query location true) before
+    Membership.mem before (Event.query location true)
 
 theorem access_checked (policy : Policy User Input Location) (user : User) (input : Input)
     (database : Database Value) {Result : Type} (program : Program Value [] Result) :
@@ -18,7 +18,8 @@ theorem access_checked (policy : Policy User Input Location) (user : User) (inpu
 theorem access_allowed (policy : Policy User Input Location) (user : User) (input : Input)
     (database : Database Value) {Result : Type} (program : Program Value [] Result)
     (location : Location)
-    (accessed : List.Mem (Event.access location) (program.run policy user input database).2) :
+    (accessed :
+      Membership.mem (program.run policy user input database).2 (Event.access location)) :
     policy user input location = true := by
   sorry
 
