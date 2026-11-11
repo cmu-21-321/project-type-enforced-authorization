@@ -6,10 +6,12 @@ namespace TypedAuthz
 
 variable {User Input Location : Type} {Value : Location -> Type}
 
+/-- Every access in the trace comes after an allowed query of the same location. -/
 def Justified (trace : List (Event Location)) : Prop :=
   forall before location after, trace = before ++ Event.access location :: after ->
     Membership.mem before (Event.query location true)
 
+/-- Each location a program reads was either checked before it started, or allowed by a query earlier in the trace. -/
 theorem checked_or_queried (policy : Policy User Input Location) (user : User) (input : Input)
     (database : Database Value) {checked : List Location} {Result : Type}
     (program : Program Value checked Result)
@@ -19,6 +21,7 @@ theorem checked_or_queried (policy : Policy User Input Location) (user : User) (
     Membership.mem checked location \/ Membership.mem before (Event.query location true) := by
   sorry
 
+/-- Each query in the trace records `policy user input location`. -/
 theorem query_eq_policy (policy : Policy User Input Location) (user : User) (input : Input)
     (database : Database Value) {checked : List Location} {Result : Type}
     (program : Program Value checked Result) (location : Location) (allowed : Bool)
@@ -43,11 +46,13 @@ theorem query_eq_policy (policy : Policy User Input Location) (user : User) (inp
       . exact ihYes queried
       . exact ihNo queried
 
+/-- A handler checks every location before reading it. -/
 theorem access_checked (policy : Policy User Input Location) (user : User) (input : Input)
     (database : Database Value) {Result : Type} (program : Program Value [] Result) :
     Justified (program.run policy user input database).2 := by
   sorry
 
+/-- A handler reads only locations the policy allows. -/
 theorem access_allowed (policy : Policy User Input Location) (user : User) (input : Input)
     (database : Database Value) {Result : Type} (program : Program Value [] Result)
     (location : Location)

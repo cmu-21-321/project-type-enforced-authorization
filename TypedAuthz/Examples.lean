@@ -16,6 +16,7 @@ abbrev FieldValue : Field -> Type
   | .fee => Nat
   | .diagnosis => String
 
+/-- Only Lucy may read a diagnosis. -/
 def booth : Policy Peanut Unit Field
   | .lucy, _, _ => true
   | _, _, .diagnosis => false
@@ -26,6 +27,7 @@ def chart : Database FieldValue
   | .fee => 5
   | .diagnosis => "pantophobia"
 
+/-- `chart` with a different diagnosis. -/
 def revisedChart : Database FieldValue
   | .name => "Charlie Brown"
   | .fee => 5
