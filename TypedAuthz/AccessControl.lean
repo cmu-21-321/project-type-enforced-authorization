@@ -25,7 +25,23 @@ theorem query_eq_policy (policy : Policy User Input Location) (user : User) (inp
     (queried :
       Membership.mem (program.run policy user input database).2 (Event.query location allowed)) :
     policy user input location = allowed := by
-  sorry
+  induction program with
+  | pure result => simp [Program.run] at queried
+  | read location' isChecked next ih =>
+    simp [Program.run] at queried
+    exact ih _ queried
+  | check location' yes no ihYes ihNo =>
+    simp [Program.run] at queried
+    cases queried with
+    | inl same =>
+      -- the query this check just recorded
+      rw [same.1]
+      exact same.2.symm
+    | inr queried =>
+      -- a query from whichever branch ran
+      split at queried
+      . exact ihYes queried
+      . exact ihNo queried
 
 theorem access_checked (policy : Policy User Input Location) (user : User) (input : Input)
     (database : Database Value) {Result : Type} (program : Program Value [] Result) :
