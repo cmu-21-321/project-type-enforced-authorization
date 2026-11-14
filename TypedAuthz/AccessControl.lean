@@ -19,7 +19,40 @@ theorem checked_or_queried (policy : Policy User Input Location) (user : User) (
     (split : (program.run policy user input database).2 =
       before ++ Event.access location :: after) :
     Membership.mem checked location \/ Membership.mem before (Event.query location true) := by
-  sorry
+  -- each case passes the tail of before to the hypothesis
+  induction program generalizing before with
+  | pure result => simp [Program.run] at split
+  | @read checked Result location' isChecked next ih =>
+    simp only [Program.run] at split
+    -- whether the access is this read or a later one
+    cases before with
+    | nil =>
+      simp at split
+      rw [<- split.1]
+      exact Or.inl isChecked
+    | cons event before' =>
+      simp at split
+      exact (ih _ before' split.2).imp_right (List.mem_cons_of_mem _)
+  | @check checked Result location' yes no ihYes ihNo =>
+    simp only [Program.run] at split
+    cases before with
+    | nil => simp at split
+    | cons event before' =>
+      cases allowed : policy user input location' with
+      | false =>
+        simp [allowed] at split
+        exact (ihNo before' split.2).imp_right (List.mem_cons_of_mem _)
+      | true =>
+        simp [allowed] at split
+        cases ihYes before' split.2 with
+        | inl member =>
+          cases List.mem_cons.mp member with
+          | inl same =>
+            -- the location this check just allowed
+            rw [<- split.1, same]
+            exact Or.inr (List.mem_cons_self ..)
+          | inr earlier => exact Or.inl earlier
+        | inr queried => exact Or.inr (List.mem_cons_of_mem _ queried)
 
 /-- Each query in the trace records `policy user input location`. -/
 theorem query_eq_policy (policy : Policy User Input Location) (user : User) (input : Input)
@@ -50,7 +83,10 @@ theorem query_eq_policy (policy : Policy User Input Location) (user : User) (inp
 theorem access_checked (policy : Policy User Input Location) (user : User) (input : Input)
     (database : Database Value) {Result : Type} (program : Program Value [] Result) :
     Justified (program.run policy user input database).2 := by
-  sorry
+  intro before location after split
+  cases checked_or_queried policy user input database program before after location split with
+  | inl member => simp at member
+  | inr queried => exact queried
 
 /-- A handler reads only locations the policy allows. -/
 theorem access_allowed (policy : Policy User Input Location) (user : User) (input : Input)
@@ -59,6 +95,11 @@ theorem access_allowed (policy : Policy User Input Location) (user : User) (inpu
     (accessed :
       Membership.mem (program.run policy user input database).2 (Event.access location)) :
     policy user input location = true := by
-  sorry
+  match List.append_of_mem accessed with
+  | Exists.intro before (Exists.intro after split) =>
+    have queried := access_checked policy user input database program before location after split
+    apply query_eq_policy policy user input database program location true
+    rw [split]
+    exact List.mem_append_left _ queried
 
 end TypedAuthz
