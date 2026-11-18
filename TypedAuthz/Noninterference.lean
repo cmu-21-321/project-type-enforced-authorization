@@ -7,8 +7,8 @@ namespace TypedAuthz
 variable {User Input Location : Type} {Value : Location -> Type}
 
 /-- If every location in `checked` is allowed, a program runs the same on two databases that agree on every allowed location. -/
-theorem run_eq_of_agree (policy : Policy User Input Location) (user : User) (input : Input)
-    (database1 database2 : Database Value)
+theorem run_eq_of_agree (policy : User -> Input -> Location -> Bool) (user : User)
+    (input : Input) (database1 database2 : (location : Location) -> Value location)
     (agree : forall location, policy user input location = true ->
       database1 location = database2 location)
     {checked : List Location}
@@ -35,8 +35,8 @@ theorem run_eq_of_agree (policy : Policy User Input Location) (user : User) (inp
       simp [Program.run, allowed, ihYes yesAllowed]
 
 /-- A handler gives the same result and trace on any two databases that agree on every location the user may read. -/
-theorem noninterference (policy : Policy User Input Location) (user : User) (input : Input)
-    (database1 database2 : Database Value)
+theorem noninterference (policy : User -> Input -> Location -> Bool) (user : User)
+    (input : Input) (database1 database2 : (location : Location) -> Value location)
     (agree : forall location, policy user input location = true ->
       database1 location = database2 location)
     {Result : Type} (program : Program Value [] Result) :

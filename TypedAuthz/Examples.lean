@@ -17,18 +17,18 @@ abbrev FieldValue : Field -> Type
   | .diagnosis => String
 
 /-- Only Lucy may read a diagnosis. -/
-def booth : Policy Peanut Unit Field
+def booth : Peanut -> Unit -> Field -> Bool
   | .lucy, _, _ => true
   | _, _, .diagnosis => false
   | _, _, _ => true
 
-def chart : Database FieldValue
+def chart : (field : Field) -> FieldValue field
   | .name => "Charlie Brown"
   | .fee => 5
   | .diagnosis => "pantophobia"
 
 /-- `chart` with a different diagnosis. -/
-def revisedChart : Database FieldValue
+def revisedChart : (field : Field) -> FieldValue field
   | .name => "Charlie Brown"
   | .fee => 5
   | .diagnosis => "hypengyophobia"

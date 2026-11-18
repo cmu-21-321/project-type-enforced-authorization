@@ -4,12 +4,6 @@ namespace TypedAuthz
 
 variable {User Input Location : Type} {Value : Location -> Type}
 
-/-- Whether a user may read a location, given the request input. -/
-abbrev Policy (User Input Location : Type) := User -> Input -> Location -> Bool
-
-/-- A database maps each `location` to a value of type `Value location`. -/
-abbrev Database (Value : Location -> Type) := (location : Location) -> Value location
-
 /-- A request handler that may read only the locations in `checked`. -/
 inductive Program (Value : Location -> Type) : List Location -> Type -> Type 1 where
   | pure {checked : List Location} {Result : Type} (result : Result) :
@@ -31,8 +25,8 @@ inductive Event (Location : Type) where
   | access (location : Location)
 
 /-- Runs `program` for `user` with `input` against `database`, giving its result and trace. -/
-def Program.run (policy : Policy User Input Location) (user : User) (input : Input)
-    (database : Database Value) {checked : List Location} {Result : Type} :
+def Program.run (policy : User -> Input -> Location -> Bool) (user : User) (input : Input)
+    (database : (location : Location) -> Value location) {checked : List Location} {Result : Type} :
     Program Value checked Result -> Prod Result (List (Event Location))
   | .pure result => (result, [])
   | .read location _ next =>
