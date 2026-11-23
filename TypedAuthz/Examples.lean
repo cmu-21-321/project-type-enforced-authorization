@@ -10,18 +10,19 @@ deriving instance Repr for Event
 inductive Peanut | charlieBrown | lucy | linus
 
 inductive Field | name | fee | diagnosis
-  deriving Repr
+  deriving Repr, DecidableEq
 
 abbrev FieldValue : Field -> Type
   | .name => String
   | .fee => Nat
   | .diagnosis => String
 
-/-- Only Lucy may read a diagnosis. -/
-def booth : Peanut -> Unit -> Field -> Bool
-  | .lucy, _, _ => true
-  | _, _, .diagnosis => false
-  | _, _, _ => true
+/-- Only Lucy may read a diagnosis or change the chart. -/
+def booth : Peanut -> Unit -> Action -> Field -> Bool
+  | .lucy, _, _, _ => true
+  | _, _, .read, .diagnosis => false
+  | _, _, .read, _ => true
+  | _, _, .write, _ => false
 
 def chart : (field : Field) -> FieldValue field
   | .name => "Charlie Brown"
@@ -35,8 +36,8 @@ def revisedChart : (field : Field) -> FieldValue field
   | .diagnosis => "hypengyophobia"
 
 def bill : Program FieldValue [] String :=
-  .check .name
-    (.check .fee
+  .check .read .name
+    (.check .read .fee
       (.read .name (by simp) fun name =>
         .read .fee (by simp) fun fee =>
           .pure s!"{name} owes {fee} cents")
@@ -44,38 +45,32 @@ def bill : Program FieldValue [] String :=
     (.pure "no name")
 
 def diagnosis : Program FieldValue [] String :=
-  .check .diagnosis
+  .check .read .diagnosis
     (.read .diagnosis (by simp) .pure)
     (.pure "The Doctor is Out")
 
-#eval bill.run booth .charlieBrown () chart
+def rediagnose : Program FieldValue [] String :=
+  .check .write .diagnosis
+    (.write .diagnosis (by simp) "hypengyophobia" (.pure "rediagnosed"))
+    (.pure "only Lucy can do that")
 
-#eval diagnosis.run booth .lucy () chart
-#eval diagnosis.run booth .lucy () revisedChart
+#eval (bill.run booth .charlieBrown () Lens.eval chart).1
 
-#eval diagnosis.run booth .linus () chart
-#eval diagnosis.run booth .linus () revisedChart
+#eval (diagnosis.run booth .lucy () Lens.eval chart).1
+#eval (diagnosis.run booth .lucy () Lens.eval revisedChart).1
 
--- rejected, since `.diagnosis` is not in the empty checked list
+#eval (diagnosis.run booth .linus () Lens.eval chart).1
+#eval (diagnosis.run booth .linus () Lens.eval revisedChart).1
+
+#eval (rediagnose.run booth .lucy () Lens.eval chart).1
+#eval (rediagnose.run booth .lucy () Lens.eval chart).2 .diagnosis
+#eval (rediagnose.run booth .linus () Lens.eval chart).1
+#eval (rediagnose.run booth .linus () Lens.eval chart).2 .diagnosis
+
+-- rejected, since reading `.diagnosis` was never checked
 -- def leak : Program FieldValue [] String := .read .diagnosis (by simp) .pure
 
 /-! ## A nested chart -/
-
-example {Key Kind : Type} [DecidableEq Key] {User Input : Type} {Leaf : Kind -> Type}
-    {schema : Schema Key Kind}
-    (policy : User -> Input -> (Sigma fun kind => Quiver.Path schema (.leaf kind)) -> Bool)
-    (user : User) (input : Input) (database1 database2 : schema.denote Leaf)
-    (agree : forall location, policy user input location = true ->
-      Lens.get (CategoryTheory.composePath ((Schema.lens Leaf).mapPath location.2)) database1 =
-        Lens.get (CategoryTheory.composePath ((Schema.lens Leaf).mapPath location.2)) database2)
-    {Result : Type}
-    (program : Program (fun (location : Sigma fun kind => Quiver.Path schema (.leaf kind)) =>
-      Leaf location.1) [] Result) :
-    program.run policy user input (fun location =>
-        Lens.get (CategoryTheory.composePath ((Schema.lens Leaf).mapPath location.2)) database1) =
-      program.run policy user input (fun location =>
-        Lens.get (CategoryTheory.composePath ((Schema.lens Leaf).mapPath location.2)) database2) :=
-  noninterference policy user input _ _ agree program
 
 inductive ChartField | name | contact | email | phone
   deriving DecidableEq
@@ -104,14 +99,41 @@ def phonePath : Quiver.Path patient (Schema.leaf ()) :=
       (Schema.Step.field (child := chartFields) ChartField.contact (by simp))).cons
     (Schema.Step.field (child := contactFields) ChartField.phone (by simp))
 
-def emailLens : Lens (patient.denote (fun _ => String)) String :=
-  CategoryTheory.composePath ((Schema.lens (fun _ => String)).mapPath emailPath)
+/-- The lens for a path to a value in the nested chart. -/
+def chartLens (path : Quiver.Path patient (Schema.leaf ())) :
+    Lens (patient.denote (fun _ => String)) String :=
+  CategoryTheory.composePath ((Schema.lens (fun _ => String)).mapPath path)
 
-def phoneLens : Lens (patient.denote (fun _ => String)) String :=
-  CategoryTheory.composePath ((Schema.lens (fun _ => String)).mapPath phonePath)
+#eval (chartLens emailPath).get nestedChart
+#eval (chartLens emailPath).get ((chartLens emailPath).set nestedChart "charlie@peanuts.com")
+#eval (chartLens phonePath).get ((chartLens emailPath).set nestedChart "charlie@peanuts.com")
 
-#eval emailLens.get nestedChart
-#eval emailLens.get (emailLens.set nestedChart "charlie@peanuts.com")
-#eval phoneLens.get (emailLens.set nestedChart "charlie@peanuts.com")
+/-- Everyone may read the nested chart, but only Lucy may change it. -/
+def contactPolicy : Peanut -> Unit -> Action -> Quiver.Path patient (Schema.leaf ()) -> Bool
+  | .lucy, _, _, _ => true
+  | _, _, .read, _ => true
+  | _, _, .write, _ => false
+
+def updateEmail :
+    Program (fun (_ : Quiver.Path patient (Schema.leaf ())) => String) [] String :=
+  .check .write emailPath
+    (.write emailPath (by simp) "charlie@peanuts.com" (.pure "updated"))
+    (.pure "only Lucy can do that")
+
+#eval (updateEmail.run contactPolicy .lucy () chartLens nestedChart).1.1
+#eval (chartLens emailPath).get (updateEmail.run contactPolicy .lucy () chartLens nestedChart).2
+#eval (updateEmail.run contactPolicy .linus () chartLens nestedChart).1.1
+#eval (chartLens emailPath).get (updateEmail.run contactPolicy .linus () chartLens nestedChart).2
+
+-- noninterference for the nested chart, with distinct paths independent by `get_set_of_ne`
+example (user : Peanut) (chart1 chart2 : patient.denote (fun _ => String))
+    (agree : forall path, contactPolicy user () .read path = true ->
+      (chartLens path).get chart1 = (chartLens path).get chart2) :
+    (updateEmail.run contactPolicy user () chartLens chart1).1 =
+      (updateEmail.run contactPolicy user () chartLens chart2).1 :=
+  noninterference contactPolicy user () chartLens
+    (fun path other different => Schema.get_set_of_ne (fun _ => String) path other
+      (fun equal => different (eq_of_heq (Sigma.mk.inj equal).2)))
+    chart1 chart2 agree updateEmail
 
 end TypedAuthz.Examples

@@ -36,6 +36,42 @@ def comp (outer : Lens Whole Middle) (inner : Lens Middle Part) : Lens Whole Par
   set_get whole := by simp [outer.set_get, inner.set_get]
   set_set whole part1 part2 := by simp [outer.get_set, inner.set_set, outer.set_set]
 
+/-- If writing through `first` leaves `second` unchanged, the same holds after putting `shared`
+in front of both. -/
+theorem comp_get_comp_set {Part1 Part2 : Type} (shared : Lens Whole Middle)
+    (first : Lens Middle Part1) (second : Lens Middle Part2)
+    (unchanged : forall middle part, second.get (first.set middle part) = second.get middle)
+    (whole : Whole) (part : Part1) :
+    (shared.comp second).get ((shared.comp first).set whole part) =
+      (shared.comp second).get whole := by
+  simp only [comp, shared.get_set, unchanged]
+
+/-- If writing through `first` leaves `second` unchanged, the same holds after following each with
+another lens. -/
+theorem comp_get_comp_set_of_get_set {Middle1 Middle2 Part1 Part2 : Type}
+    (first : Lens Whole Middle1) (second : Lens Whole Middle2)
+    (unchanged : forall whole part, second.get (first.set whole part) = second.get whole)
+    (rest1 : Lens Middle1 Part1) (rest2 : Lens Middle2 Part2) (whole : Whole) (part : Part1) :
+    (second.comp rest2).get ((first.comp rest1).set whole part) =
+      (second.comp rest2).get whole := by
+  simp only [comp, unchanged]
+
+/-- The lens for the value of a dependent function at `index`. -/
+def eval {Index : Type} [DecidableEq Index] {Family : Index -> Type} (index : Index) :
+    Lens ((other : Index) -> Family other) (Family index) where
+  get function := function index
+  set function value := Function.update function index value
+  get_set _ _ := Function.update_self _ _ _
+  set_get _ := Function.update_eq_self _ _
+  set_set _ _ _ := Function.update_idem _ _ _
+
+/-- Writing at one index leaves every other index unchanged. -/
+theorem eval_get_set_of_ne {Index : Type} [DecidableEq Index] {Family : Index -> Type}
+    {index other : Index} (different : Ne index other) (function : (i : Index) -> Family i)
+    (value : Family index) :
+    (eval other).get ((eval index).set function value) = (eval other).get function :=
+  Function.update_of_ne (Ne.symm different) value function
+
 end Lens
 
 /-- A synonym for `Type` whose morphisms are lenses instead of functions. -/
