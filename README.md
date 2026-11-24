@@ -1,6 +1,10 @@
 # TypedAuthz
 
-A template for Lean 4 projects that depend on [Mathlib](https://github.com/leanprover-community/mathlib4).
+## Documents
+
+- [Report](docs/report/report.pdf) ([Typst source](docs/report/report.typ))
+- [Collaboration statement](docs/collaboration.md)
+- [AI-use statement](docs/ai-use.md)
 
 ## Prerequisites
 
