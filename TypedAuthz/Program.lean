@@ -7,7 +7,6 @@ namespace TypedAuthz
 variable {User Input Location Database : Type} {Value : Location -> Type}
 
 inductive Action | read | write
-  deriving Repr
 
 /-- A request handler that may do an action at a location only if that pair is in `checked`. -/
 inductive Program (Value : Location -> Type) : List (Prod Action Location) -> Type -> Type 1 where

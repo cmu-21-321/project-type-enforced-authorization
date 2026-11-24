@@ -5,12 +5,12 @@ import TypedAuthz.Program
 namespace TypedAuthz
 
 variable {User Input Location Database : Type} {Value : Location -> Type}
+variable (policy : User -> Input -> Action -> Location -> Bool) (user : User) (input : Input)
+  (lens : (location : Location) -> Lens Database (Value location)) (database : Database)
 
 /-- Each action a program does at a location was either checked before it started, or allowed by a
 query earlier in the trace. -/
-theorem checked_or_queried (policy : User -> Input -> Action -> Location -> Bool) (user : User)
-    (input : Input) (lens : (location : Location) -> Lens Database (Value location))
-    (database : Database) {checked : List (Prod Action Location)} {Result : Type}
+theorem checked_or_queried {checked : List (Prod Action Location)} {Result : Type}
     (program : Program Value checked Result)
     (before after : List (Event Location)) (action : Action) (location : Location)
     (split : (program.run policy user input lens database).1.2 =
@@ -66,9 +66,7 @@ theorem checked_or_queried (policy : User -> Input -> Action -> Location -> Bool
         | inr queried => exact Or.inr (List.mem_cons_of_mem _ queried)
 
 /-- Each query in the trace records `policy user input action location`. -/
-theorem query_eq_policy (policy : User -> Input -> Action -> Location -> Bool) (user : User)
-    (input : Input) (lens : (location : Location) -> Lens Database (Value location))
-    (database : Database) {checked : List (Prod Action Location)} {Result : Type}
+theorem query_eq_policy {checked : List (Prod Action Location)} {Result : Type}
     (program : Program Value checked Result) (action : Action) (location : Location)
     (allowed : Bool)
     (queried : Membership.mem (program.run policy user input lens database).1.2
@@ -96,9 +94,7 @@ theorem query_eq_policy (policy : User -> Input -> Action -> Location -> Bool) (
       next => exact ihNo _ queried
 
 /-- A handler checks every action at a location before doing it. -/
-theorem access_checked (policy : User -> Input -> Action -> Location -> Bool) (user : User)
-    (input : Input) (lens : (location : Location) -> Lens Database (Value location))
-    (database : Database) {Result : Type} (program : Program Value [] Result)
+theorem access_checked {Result : Type} (program : Program Value [] Result)
     (before after : List (Event Location)) (action : Action) (location : Location)
     (split : (program.run policy user input lens database).1.2 =
       before ++ Event.access action location :: after) :
@@ -109,9 +105,7 @@ theorem access_checked (policy : User -> Input -> Action -> Location -> Bool) (u
   | inr queried => exact queried
 
 /-- A handler does only the actions the policy allows. -/
-theorem access_allowed (policy : User -> Input -> Action -> Location -> Bool) (user : User)
-    (input : Input) (lens : (location : Location) -> Lens Database (Value location))
-    (database : Database) {Result : Type} (program : Program Value [] Result)
+theorem access_allowed {Result : Type} (program : Program Value [] Result)
     (action : Action) (location : Location)
     (accessed : Membership.mem (program.run policy user input lens database).1.2
       (Event.access action location)) :
