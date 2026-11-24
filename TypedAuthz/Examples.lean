@@ -75,7 +75,7 @@ example : (rediagnose.run booth .linus () Lens.eval chart).1 =
 example : (rediagnose.run booth .linus () Lens.eval chart).2 .diagnosis = "pantophobia" := rfl
 
 -- rejected, since reading `.diagnosis` was never checked
--- def leak : Program FieldValue [] String := .read .diagnosis (by simp) .pure
+-- def leak : Program FieldValue [] String := .read .diagnosis (List.Mem.head _) .pure
 
 /-! ## A nested chart -/
 
